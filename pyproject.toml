@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "pydantic-avro"
-version = "0.4.2"
+version = "0.5.0"
 description = "Converting pydantic classes to avro schemas"
-authors = ["Peter van 't Hof' <peter.vanthof@godatadriven.com>"]
+authors = ["Peter van 't Hof' <peter.vanthof@godatadriven.com>", "Jauhieni Harochau <jauhieni.harochau@gamemod.dev>"]
 
 keywords = ["pydantic", "avro"]
 readme = "README.md"
