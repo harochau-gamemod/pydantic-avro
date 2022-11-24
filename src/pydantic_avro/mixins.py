@@ -1,10 +1,8 @@
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
 
-
-class AvroBase(BaseModel):
-    """This is base pydantic class that will add some methods"""
+class AvroMixin:
+    """This is a mixin class that adds avro schema generation functionality to pydantic models"""
 
     @classmethod
     def avro_schema(cls, by_alias: bool = True, namespace: Optional[str] = None) -> dict:
