@@ -133,7 +133,12 @@ class AvroMixin:
 
             required = s.get("required", [])
             for key, value in s.get("properties", {}).items():
-                avro_type_dict = get_type(value)
+                if 'anyOf' in value:
+                    avro_type_list = [get_type(optional_type) for optional_type in value['anyOf']]
+                    union_types = [avro_type['type'] for avro_type in avro_type_list]
+                    avro_type_dict = {"type": union_types}
+                else:
+                    avro_type_dict = get_type(value)
                 avro_type_dict["name"] = key
 
                 if key not in required:
