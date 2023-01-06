@@ -4,14 +4,22 @@ import os
 import tempfile
 import uuid
 from datetime import date, datetime, time
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 from uuid import UUID
 
+import aredis_om
+import databases
+import ormar
+import pydantic
+import pytest
+import sqlalchemy
+import sqlmodel
 from avro import schema as avro_schema
 from fastavro import parse_schema, reader, writer
 from pydantic import Field
 
 from pydantic_avro.base import AvroBase
+from pydantic_avro.mixins import AvroMixin
 
 
 class Nested2Model(AvroBase):
@@ -303,3 +311,145 @@ def test_model_with_alias():
             {"type": "string", "name": "field"},
         ],
     }
+
+
+class ModelWithUnionTypeField(AvroMixin, pydantic.BaseModel):
+    field1: Union[int, str]
+
+
+def test_union_type_field():
+    result = ModelWithUnionTypeField.avro_schema()
+    assert result == {
+        "type": "record",
+        "namespace": "ModelWithUnionTypeField",
+        "name": "ModelWithUnionTypeField",
+        "fields": [
+            {"name": "field1", "type": ["long", "string"]},
+        ],
+    }
+    parsed_schema = parse_schema(result)
+    record_schema = avro_schema.parse(json.dumps(result))
+    assert True
+
+
+class Enum1(enum.StrEnum):
+    E1 = enum.auto()
+    E2 = enum.auto()
+
+
+class Nested1(pydantic.BaseModel):
+    field2: Enum1 = Enum1.E1
+
+
+class Enum2(enum.StrEnum):
+    E3 = enum.auto()
+
+
+class Nested3(pydantic.BaseModel):
+    field6: Enum2
+
+
+class Nested2(pydantic.BaseModel):
+    field9: list[Nested3]
+
+
+class ComplexModelWithUnionTypes(AvroMixin, pydantic.BaseModel):
+    very_complex_field: Nested1 | Nested2
+
+
+def test_union_models():
+    result = ComplexModelWithUnionTypes.avro_schema()
+    assert result == {'type': 'record', 'namespace': 'ComplexModelWithUnionTypes', 'name': 'ComplexModelWithUnionTypes',
+                      'fields': [{'name': 'very_complex_field', 'type': [
+                          {'type': 'record', 'fields': [
+                              {'default': 'e1', 'type': {'type': 'enum', 'symbols': ['e1', 'e2'], 'name': 'Enum1'},
+                               'name': 'field2'}], 'name': 'Nested1'},
+                          {'type': 'record', 'fields': [{'type': {
+                              'type': 'array', 'items': {'type': 'record', 'fields': [
+                                  {'type': {'type': 'enum', 'symbols': ['e3'], 'name': 'Enum2'}, 'name': 'field6'}],
+                                                         'name': 'Nested3'}}, 'name': 'field9'}], 'name': 'Nested2'}]}]}
+    parsed_schema = parse_schema(result)
+    record_schema = avro_schema.parse(json.dumps(result))
+    assert True
+
+
+class Mixin2(pydantic.BaseModel):
+    id: UUID
+
+
+class Mixin1(pydantic.BaseModel):
+    field2: str
+
+
+class ComposedModel(AvroMixin, Mixin1, Mixin2, pydantic.BaseModel):
+    field1: str
+    field3: UUID
+
+
+def test_composition_model():
+    result = ComposedModel.avro_schema()
+    parsed_schema = parse_schema(result)
+    record_schema = avro_schema.parse(json.dumps(result))
+    assert True
+
+
+class OrmarSimpleModel(AvroMixin, ormar.Model):
+    id: int = ormar.Integer(primary_key=True)
+
+    class Meta:
+        metadata = sqlalchemy.MetaData()
+        database = databases.Database("sqlite:///:memory")
+
+
+def test_ormar_mixin():
+    result = OrmarSimpleModel.avro_schema()
+    assert result == {
+        'type': 'record',
+        'namespace': 'OrmarSimpleModel',
+        'name': 'OrmarSimpleModel',
+        'fields': [{'type': ['null', 'long'], 'name': 'id', 'default': None}]}  # pk is always optional in ormar
+    parsed_schema = parse_schema(result)
+    record_schema = avro_schema.parse(json.dumps(result))
+    assert True
+
+
+class SQLModelSimpleModel(AvroBase, sqlmodel.SQLModel, table=True):
+    id: Optional[int] = sqlmodel.Field(default=None, primary_key=True)
+
+
+def test_sqlmodel_inheritance():
+    result = SQLModelSimpleModel.avro_schema()
+    assert result == {
+        'type': 'record',
+        'namespace': 'SQLModelSimpleModel',
+        'name': 'SQLModelSimpleModel',
+        'fields': [{'type': ['null', 'long'], 'name': 'id', 'default': None}]}
+    parsed_schema = parse_schema(result)
+    record_schema = avro_schema.parse(json.dumps(result))
+    assert True
+
+
+def test_sqlmodel_mixin():
+    with pytest.raises(AttributeError):
+        class SQLModelMixinModel(AvroMixin, sqlmodel.SQLModel, table=True):
+            id: Optional[int] = sqlmodel.Field(default=None, primary_key=True)
+
+        SQLModelMixinModel.avro_schema()
+
+
+class RedisOMSimpleModel(AvroMixin, aredis_om.HashModel):
+    field1: int = aredis_om.Field()
+
+
+def test_redis_om_mixin():
+    result = RedisOMSimpleModel.avro_schema()
+    assert result == {
+        'type': 'record',
+        'namespace': 'RedisOMSimpleModel',
+        'name': 'RedisOMSimpleModel',
+        'fields': [{'type': ['null', 'string'], 'name': 'pk', 'default': None},  # redis-om have default nullable pk
+                   {'type': 'long', 'name': 'field1'},
+                   ]}
+    parsed_schema = parse_schema(result)
+    record_schema = avro_schema.parse(json.dumps(result))
+    assert True

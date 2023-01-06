@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pydantic-avro"
-version = "0.5.0"
+version = "0.5.1"
 description = "Converting pydantic classes to avro schemas"
 authors = ["Peter van 't Hof' <peter.vanthof@godatadriven.com>", "Jauhieni Harochau <jauhieni.harochau@gamemod.dev>"]
 
@@ -17,8 +17,8 @@ include = [
 packages = [{ include = "pydantic_avro", from = "src"}]
 
 [tool.poetry.dependencies]
-python = ">=3.6.1,<4.0"
-pydantic = "^1.4.0"
+python = ">=3.7,<4.0"
+pydantic = "^1.10.2"
 
 [tool.poetry.dev-dependencies]
 coverage= {version=  "^6.1.1", extras=["toml"]}
@@ -30,7 +30,11 @@ black="20.8b1"
 pytest-cov= "^3.0.0"
 mypy = "^0.961"
 avro = "^1.11.0"
-fastavro = "^1.4.0"
+fastavro = "^1.7.0"
+redis-om = {git = "https://github.com/redis/redis-om-python", rev = "7bc8b402d58b1c451dcf3c4be6a25335f977b7dd"}
+ormar = "^0.12.0"
+aiosqlite = "^0.18.0"
+sqlmodel = "^0.0.8"
 
 [tool.poetry.scripts]
 pydantic-avro = "pydantic_avro.__main__:root_main"
